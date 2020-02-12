@@ -29,9 +29,11 @@ def tokenize_text(text):
 
 # Remove characters after tokenization
 def remove_characters_after_tokenization(tokens):
+    #PATTERN =
     pattern = re.compile('[{}]'.format(re.escape(string.punctuation)))
     filtered_tokens = filter(None, [pattern.sub('',token) for token in tokens])
-    filtered_tokens = [t for t in list(filtered_tokens) if len(re.sub(r'[0-9]+.*',r'',t)) > 0]
+    filtered_tokens = [t for t in list(filtered_tokens) if len(re.sub(r'[0-9]+.*|\-\+',r'',t)) > 0]
+    #filtered_tokens = [t for t in filtered_tokens if ]
     return list(filtered_tokens)
 
 # Remove special characters before tokenization
@@ -55,3 +57,47 @@ def remove_stopwords(tokens):
 def get_vocabulary(tokens):
     vocabulary = sorted(set(tokens))
     return vocabulary
+
+# Get context (Kolesnikova's implementation)
+def get_context(tokens, windowSize = 8):
+    contexts = {}
+    for w in tokens:
+        context2 = []
+        for i in range(len(tokens)):
+            if tokens[i] == w: # w is the current word analyzed
+                for j in range(i - int(windowSize / 2), i): # left context
+                    if j >= 0:
+                        context2.append(tokens[j])
+                try:
+                    for j in range(i+1, i+(int(windowSize/2)+1)): # right context
+                        context2.append(tokens[j])
+                except IndexError:
+                    pass
+        contexts[w] = context2
+    return contexts
+
+# Get context (Charly's implementation)
+def get_context_c(tokens, windowSize = 8):
+    contexts = {}
+    memo_context = [] # Memoization technique
+    i = 0
+    limit = int(windowSize / 2) + 1
+    for word in tokens:
+        # Only at the beginning of the algorithm
+        if i == 0:
+            memo_context = tokens[i+1:i+limit] # right context
+            contexts[word] = memo_context
+            i += 1
+        else:
+            #if i <= 3:
+            #if i <= len(tokens)-limit:
+            #    memo_context = memo_context[:i] + memo_context[i+1:] + tokens[i+limit]
+            #else:
+            #    limit -= 1
+            #    memo_context = memo_context[:i] + memo_context[i+1:] + tokens[i+limit]
+            if i >= len(tokens)-limit:
+                limit -= 1
+            memo_context = memo_context[:i] + memo_context[i+1:] + list(tokens[i+limit])
+            contexts[word] = memo_context
+            i += 1
+    return contexts

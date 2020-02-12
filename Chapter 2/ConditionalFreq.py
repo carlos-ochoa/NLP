@@ -16,5 +16,7 @@ text = nltk.corpus.genesis.words('english-kjv.txt')
 bigrams = nltk.bigrams(text)
 cfd = nltk.ConditionalFreqDist(bigrams)
 
+print(cfd['the']['earth'])
+print(cfd.items())
 print(str(cfd['God']))
 generate_model(cfd,'God')
