@@ -79,25 +79,33 @@ def get_context(tokens, windowSize = 8):
 # Get context (Charly's implementation)
 def get_context_c(tokens, windowSize = 8):
     contexts = {}
-    memo_context = [] # Memoization technique
+    context = []
+    aux_context = []
+    memo_context = []
     i = 0
     limit = int(windowSize / 2) + 1
+    half = limit - 1
     for word in tokens:
         # Only at the beginning of the algorithm
         if i == 0:
-            memo_context = tokens[i+1:i+limit] # right context
-            contexts[word] = memo_context
+            memo_context = tokens[:windowSize+1]
+            context = memo_context[i+1:limit]
+            contexts[word] = context
             i += 1
         else:
-            #if i <= 3:
-            #if i <= len(tokens)-limit:
-            #    memo_context = memo_context[:i] + memo_context[i+1:] + tokens[i+limit]
-            #else:
-            #    limit -= 1
-            #    memo_context = memo_context[:i] + memo_context[i+1:] + tokens[i+limit]
-            if i >= len(tokens)-limit:
-                limit -= 1
-            memo_context = memo_context[:i] + memo_context[i+1:] + list(tokens[i+limit])
-            contexts[word] = memo_context
+            if i <= limit - 2:
+                context = memo_context[:i] + memo_context[i+1:i+limit]
+            elif i < len(tokens) - limit:
+                context = memo_context[:half] + memo_context[half+1:]
+                memo_context.pop(0)
+                memo_context.append(tokens[i+limit])
+            else:
+                context = memo_context[i-limit:i] + memo_context[i:]
+            # Verify if the word already exists in the dictionary
+            if word in contexts:
+                aux_context = contexts[word] + context
+                contexts[word] = aux_context
+            else:
+                contexts[word] = context
             i += 1
     return contexts
