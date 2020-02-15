@@ -29,11 +29,11 @@ def tokenize_text(text):
 
 # Remove characters after tokenization
 def remove_characters_after_tokenization(tokens):
-    #PATTERN =
+    PATTERN = r'[0-9]|¿|\-|—|\.+|\?|&|\*|%|@|(|)|~|\)|!|¡|\(|\\|\+|º|¦|\/|:|"|#|,|\$|`|;|_|{|\[|\]|\'+'
     pattern = re.compile('[{}]'.format(re.escape(string.punctuation)))
     filtered_tokens = filter(None, [pattern.sub('',token) for token in tokens])
-    filtered_tokens = [t for t in list(filtered_tokens) if len(re.sub(r'[0-9]+.*|\-\+',r'',t)) > 0]
-    #filtered_tokens = [t for t in filtered_tokens if ]
+    #filtered_tokens = [t for t in list(filtered_tokens) if len(re.sub(r'[0-9]+.*|¿',r'',t)) > 0]
+    filtered_tokens = [re.sub(PATTERN,r'',t) for t in tokens if len(re.sub(PATTERN,r'',t)) > 0]
     return list(filtered_tokens)
 
 # Remove special characters before tokenization
@@ -84,6 +84,7 @@ def get_context_c(tokens, windowSize = 8):
     memo_context = []
     i = 0
     limit = int(windowSize / 2) + 1
+    j = limit
     half = limit - 1
     for word in tokens:
         # Only at the beginning of the algorithm
@@ -93,14 +94,17 @@ def get_context_c(tokens, windowSize = 8):
             contexts[word] = context
             i += 1
         else:
-            if i <= limit - 2:
+            if i < limit - 2:
                 context = memo_context[:i] + memo_context[i+1:i+limit]
             elif i < len(tokens) - limit:
                 context = memo_context[:half] + memo_context[half+1:]
                 memo_context.pop(0)
                 memo_context.append(tokens[i+limit])
             else:
-                context = memo_context[i-limit:i] + memo_context[i:]
+                if j != half*2+1:
+                    # We make a copy of memo_context
+                    context = memo_context[j-half:j] + memo_context[j+1:]
+                    j += 1
             # Verify if the word already exists in the dictionary
             if word in contexts:
                 aux_context = contexts[word] + context
@@ -109,3 +113,10 @@ def get_context_c(tokens, windowSize = 8):
                 contexts[word] = context
             i += 1
     return contexts
+
+# Vectorization
+def vectorize_tokens(contexts):
+
+    cfd = nltk.ConditionalFreqDist(
+                            (word,dest) for 
+    )
