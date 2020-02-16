@@ -1,8 +1,33 @@
 import nltk
 import re
 import string
+import numpy as np
+from pickle import dump,load
 from bs4 import BeautifulSoup
 from nltk.corpus import PlaintextCorpusReader
+
+# Functions to save files
+def save_structure(structure,filename):
+    file = open(filename,'wb')
+    dump(structure,file)
+    file.close()
+
+def load_structure(filename):
+    file = open(filename,'rb')
+    structure = load(file)
+    file.close()
+    return structure
+
+def write_file(info,filename):
+    file = open(filename,'w')
+    for line in info:
+        file.write("%s\n" % line)
+    file.close()
+
+def read_file(filename):
+    file = open(filename,'r')
+    text = file.read()
+    return text
 
 # Load an html file
 def load_html_file(file):
@@ -56,6 +81,7 @@ def remove_stopwords(tokens):
 # Get vocabulary of the text
 def get_vocabulary(tokens):
     vocabulary = sorted(set(tokens))
+    save_structure(vocabulary,'vocabulary.pkl')
     return vocabulary
 
 # Get context (Kolesnikova's implementation)
@@ -112,11 +138,5 @@ def get_context_c(tokens, windowSize = 8):
             else:
                 contexts[word] = context
             i += 1
+    save_structure(contexts,'contexts.pkl')
     return contexts
-
-# Vectorization
-def vectorize_tokens(contexts):
-
-    cfd = nltk.ConditionalFreqDist(
-                            (word,dest) for 
-    )
