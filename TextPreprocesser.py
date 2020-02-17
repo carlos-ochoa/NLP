@@ -6,6 +6,10 @@ from pickle import dump,load
 from bs4 import BeautifulSoup
 from nltk.corpus import PlaintextCorpusReader
 
+FILE_PIK_VOC = 'vocabulary_l.pkl'
+FILE_PIK_TOK = 'tokens_l.pkl'
+FILE_PIK_CONT = 'contexts_l.pkl'
+
 # Functions to save files
 def save_structure(structure,filename):
     file = open(filename,'wb')
@@ -81,7 +85,7 @@ def remove_stopwords(tokens):
 # Get vocabulary of the text
 def get_vocabulary(tokens):
     vocabulary = sorted(set(tokens))
-    save_structure(vocabulary,'vocabulary.pkl')
+    save_structure(vocabulary,FILE_PIK_VOC)
     return vocabulary
 
 # Get context (Kolesnikova's implementation)
@@ -138,5 +142,29 @@ def get_context_c(tokens, windowSize = 8):
             else:
                 contexts[word] = context
             i += 1
-    save_structure(contexts,'contexts.pkl')
+    save_structure(contexts,FILE_PIK_CONT)
     return contexts
+
+# Tag tokens
+def tag_tokens(tokens):
+    tagged_tokens = []
+    tagger = load_structure('tagger.pkl')
+    tagged_tokens_tuples = tagger.tag(tokens)
+    for (token,tag) in tagged_tokens_tuples:
+        tagged_tokens.append(token + " " + tag[0].lower())
+    return tagged_tokens
+
+# Lematization functions
+
+# This implementation is for a python dictionary, nltk dictionary will be implemented later
+def lematize_tokens(tokens):
+    lem_tokens = []
+    lemmas = load_structure('lem_dict.pkl')
+    for token in tokens:
+        new_token = lemmas[token] if token in lemmas else token
+        '''if token in lemmas:
+            new_token = lemmas[token]
+        else:
+            new_token ='''
+        lem_tokens.append(new_token)
+    return lem_tokens
