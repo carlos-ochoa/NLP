@@ -11,6 +11,8 @@ FILE_PIK_VOC = '../Files/Vocabularies/vocabulary_s2.pkl'
 FILE_PIK_TOK = '../Files/Tokens/tokens_s2.pkl'
 FILE_PIK_CONT = '../Files/Contexts/contexts_s2.pkl'
 FILE_PIK_FILTERED = '../Files/Tokens/tokens_f.pkl'
+FILE_PIK_TAGGER = '../Files/tagger.pkl'
+LEM_DICT = '../Files/Dictionaries/lem_dict.pkl'
 
 # Functions to save files
 def save_structure(structure,filename):
@@ -149,9 +151,11 @@ def get_context_c(tokens, windowSize = 8):
     return contexts
 
 # Tag tokens
-def tag_tokens(tokens):
+def tag_tokens(tokens, tagger = None):
     tagged_tokens = []
-    tagger = load_structure('tagger.pkl')
+    # Problema con los continuos accesos a este archivo
+    if tagger == None:
+        tagger = load_structure(FILE_PIK_TAGGER)
     tagged_tokens_tuples = tagger.tag(tokens)
     for (token,tag) in tagged_tokens_tuples:
         tagged_tokens.append(token + " " + tag[0].lower())
@@ -159,15 +163,13 @@ def tag_tokens(tokens):
 
 # Lematization functions
 # This implementation is for a python dictionary, nltk dictionary will be implemented later
-def lematize_tokens(tokens):
+def lematize_tokens(tokens,lemmas = None):
     lem_tokens = []
-    lemmas = load_structure('lem_dict.pkl')
+    # El problema está en los continuos accesos a este archivo
+    if lemmas == None:
+        lemmas = load_structure(LEM_DICT)
     for token in tokens:
         new_token = lemmas[token] if token in lemmas else token
-        '''if token in lemmas:
-            new_token = lemmas[token]
-        else:
-            new_token ='''
         lem_tokens.append(new_token)
     return lem_tokens
 
