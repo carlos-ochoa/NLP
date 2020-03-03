@@ -6,10 +6,10 @@ from pickle import dump,load
 FILE_PIK_COS = '../Files/Cosines/cosines_s_tf_2.pkl'
 FILE_PIK_VECT = '../Files/Vectors/vectors_s_tf_2.pkl'
 FILE_COS = '../Files/Cosines/cosines_s_tf_2.txt'
-FILE_PIK_SYN = '../Files/Cosines/cosines_syn_tf_2.pkl'
-FILE_SYN = '../Files/Cosines/cosines_syn_tf_2.txt'
-FILE_PIK_ENT = '../Files/Cosines/cosines_syn.pkl'
-FILE_ENT = '../Files/Cosines/entropies_syn.txt'
+FILE_PIK_SYN = '../Files/Cosines/cosines_syn_tf_2_2.pkl'
+FILE_SYN = '../Files/Cosines/cosines_syn_tf_2_2.txt'
+FILE_PIK_ENT = '../Files/Cosines/cosines_syn_mutual.pkl'
+FILE_ENT = '../Files/Cosines/entropies_syn_mutual.txt'
 
 # Functions to save files
 def save_structure(structure,filename):
@@ -196,7 +196,8 @@ def filter_vectors(main_word,vectors):
     return filtered_vectors
 
 # Functions for syntagmatic relation and word prediction tasks
-def calculate_probabilities(sentences,word1,word2):
+# Using Laplace Smoothing
+def calculate_probabilities(sentences,word1,word2, smooth = False):
     sum_w1, sum_w2, sum_w1_w2 = 0,0,0
     prob_w1, prob_w2, prob_w1_w2 = 0 ,0, 0
     for sentence in sentences:
@@ -205,14 +206,48 @@ def calculate_probabilities(sentences,word1,word2):
         if word2 in sentence:
             sum_w2 += 1
         if word1 in sentence and word2 in sentence:
+            #sum_w1 += 1
+            #sum_w2 += 2
             sum_w1_w2 += 1
-    prob_w1 = sum_w1 / len(sentences)
-    prob_w2 = sum_w2 / len(sentences)
-    prob_w1_w2 = sum_w1_w2 / len(sentences)
+    if smooth:
+        prob_w1 = (sum_w1 + 0.5) / (len(sentences) + 1)
+        prob_w2 = (sum_w2 + 0.5) / (len(sentences) + 1)
+        prob_w1_w2 = (sum_w1_w2 + 0.25) / (len(sentences) + 1)
+    else:
+        prob_w1 = sum_w1 / len(sentences)
+        prob_w2 = sum_w2 / len(sentences)
+        prob_w1_w2 = sum_w1_w2 / len(sentences)
     return [prob_w1,prob_w2,prob_w1_w2]
 
-def calculate_entropy(sentences,word1,word2):
-    probabilities = calculate_probabilities(sentences,word1,word2)
+def calculate_mutual_information(sentences,word1,word2,smooth = False):
+    probabilities = calculate_probabilities(sentences,word1,word2,smooth)
+    p_w1_0_w2_1 = probabilities[1] - probabilities[2]
+    p_w2_0 = 1 - probabilities[1]
+    p_w1_0 = 1 - probabilities[0]
+    p_w1_0_w2_0 = p_w1_0 - p_w1_0_w2_1
+    p_w1_1_w2_0 = p_w2_0 - p_w1_0_w2_0
+    try:
+        prob1 = math.log((p_w1_0_w2_0 / (p_w2_0*p_w1_0)),2)
+    except:
+        prob1 = 0
+    try:
+        prob2 = math.log((p_w1_1_w2_0 / (probabilities[0]*p_w2_0)),2)
+    except:
+        prob2 = 0
+    try:
+        prob3 = math.log((p_w1_0_w2_1 / (p_w1_0*probabilities[1])),2)
+    except:
+        prob3 = 0
+    try:
+        prob4 = math.log((probabilities[2] / (probabilities[0]*probabilities[1])),2)
+    except:
+        prob4 = 0
+    # Using KL-divergence
+    I = p_w1_0_w2_0 * prob1 + p_w1_1_w2_0 * prob2 + p_w1_0_w2_1 * prob3 + probabilities[2] * prob4
+    return I
+
+def calculate_entropy(sentences,word1,word2,smooth = False):
+    probabilities = calculate_probabilities(sentences,word1,word2,smooth)
     p_w1_0_w2_1 = probabilities[1] - probabilities[2]
     p_w2_0 = 1 - probabilities[1]
     p_w1_0 = 1 - probabilities[0]
@@ -238,12 +273,14 @@ def calculate_entropy(sentences,word1,word2):
                 + p_w1_0_w2_1 * prob3 + probabilities[2] * prob4)
     return H
 
-def discover_syntagmatic_relations(main_word,sentences,vocabulary, threshold = 0.0):
+def discover_syntagmatic_relations(main_word,sentences,vocabulary, threshold = 0.0, smooth = False):
     entropies = {}
     for word in vocabulary:
-        entropy = calculate_entropy(sentences,main_word,word)
+        entropy = calculate_mutual_information(sentences,main_word,word, smooth)
         entropies[word] = entropy
-    entropies = {k:v for k,v in sorted(entropies.items(), key = lambda item : item[1] , reverse = False) if v <= threshold}
+    entropies = {k:v for k,v in sorted(entropies.items(), key = lambda item : item[1] , reverse = True) if v <= threshold}
+    if smooth:
+        print('smootheado xd')
     save_structure(entropies,FILE_PIK_ENT)
     write_dictionary(entropies,FILE_ENT)
     return entropies
