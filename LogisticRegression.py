@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pickle import load, dump
 import nltk
+import random
 from nltk.corpus import nps_chat
 from nltk.stem import WordNetLemmatizer
 
@@ -21,9 +22,21 @@ class LogisticRegression():
 
     def __init__(self,params,X,y):
         self.X, self.Y = X,y.T
+        #print(self.Y)
+        uno, cero = 0,0
+        i = 0
+        for e in self.Y:
+            if e[0] == 0:
+                cero += 1
+            elif e[0] == 1:
+                uno += 1
+        print(cero)
+        print(uno)
+        print(params)
+        #print(self.Y)
         self.l = 0
         self.total_loss = []
-        self.w = np.array([np.zeros(params)])
+        self.w = np.array([np.random.rand(params)])
 
     def hypothesis(self):
         #print(self.w)
@@ -39,7 +52,7 @@ class LogisticRegression():
         p = []
         pre = self.sigmoid(z)
         for v in pre:
-            p.append(1 if v > 0.5 else 0)
+            p.append(1 if v >= 0.5 else 0)
         p = np.array([np.array(p)])
         return p.T
 
@@ -47,8 +60,10 @@ class LogisticRegression():
         epsilon = 1e-5
         return -1 * np.mean(self.Y * np.log(h + epsilon) + (1 - self.Y) * np.log(1 - h + epsilon))
 
-    def gradient_descent(self, alpha = 0.00001):
+    def gradient_descent(self, alpha = 0.1):
         error = self.sigmoid(self.hypothesis()) - self.Y
+        #print(error)
+        #print(self.X.shape)
         m = self.Y.size
         dw = []
         i = 0
@@ -58,6 +73,7 @@ class LogisticRegression():
             i += 1
         dw = np.array(dw)
         dw = np.sum(dw, axis = 0) / len(self.X)
+        #print(dw.shape)
         dw = np.array([dw])
         self.w -= alpha * dw
 
@@ -69,21 +85,28 @@ class LogisticRegression():
         #    print(self.l)
             self.total_loss.append(self.l)
             self.gradient_descent()
-            print('Current loss ', self.l)
+            if i % 50 == 0:
+                print('Current loss ', self.l, 'at iter: ', i)
         save_structure(self.w, 'w.pkl')
         plt.plot(range(iter), self.total_loss)
         plt.show()
 
-    def test(self,X,messages):
+    def test(self,X,messages,y):
         i = 0
+        self.X = X
+        correctos = 0
         mess, is_spam = [], []
         predictions = self.predict(self.hypothesis())
+        print(predictions)
         for x in X:
-            print(x)
-            mess.append(messages[i][0])
+            mess.append(messages[i])
             is_spam.append(predictions[i][0])
-            print(mess[i], ' Predicted : ', predictions[i][0])
+            if y[0][i] == predictions[i][0]:
+                correctos += 1
+            print('Expected ',y[0][i],' Predicted : ', predictions[i][0])
             i += 1
+        print(correctos)
+        print(len(y[0]))
         #output.to_csv('output.csv', index = False)
 
 def create_tagger():
@@ -95,14 +118,12 @@ def create_tagger():
 
 def tagger(tokens,t2):
     tags = t2.tag(tokens)
-    print('tag')
     return tags
 
 def lemmatizer(tokens,lem):
     lem_tokens = []
     for (word,pos_t) in tokens:
-        lem_tokens.append(lem.lemmatize(word, pos = pos_t) + ' ' + pos_t)
-    print('lem')
+        lem_tokens.append(lem.lemmatize(word) + ' ' + pos_t)
     return lem_tokens
 
 def preprocess_data(file):
@@ -117,7 +138,8 @@ def preprocess_data(file):
         comma = line.rfind(',')
         message = line[:comma]
         tag = line[comma:]
-        separated_lines.append([message.split(),is_spam(tag)])
+        # Tokenize
+        separated_lines.append([nltk.word_tokenize(message),is_spam(tag)])
     print('Separated messages and tags')
     # POS tagging to every message
     t2 = create_tagger()
@@ -132,12 +154,11 @@ def preprocess_data(file):
     for [l,t] in lem_lines:
         aux += l
     vocabulary = sorted(set(aux))
-    print(lem_lines)
-    print(len(lem_lines))
     return lem_lines, vocabulary
 
 def is_spam(status):
-    return 1 if status == 'spam' else 0
+    spam = 1 if status == ',spam\n' else 0
+    return spam
 
 def vectorize(documents, vocabulary):
     vectors = []
@@ -151,15 +172,31 @@ def vectorize(documents, vocabulary):
         vectors.append([vector.copy(),tag])
     return vectors
 
-def split_data(size, messages):
+def split_data(perc, messages):
     messages_train, messages_test = [], []
-    indices = [i for i in range(len(messages))]
-    random.shuffle(indices)
-    for i in indices[:size]:
+    indices = []
+    indices_spam = [i for i in range(len(messages)) if messages[i][1] == 1]
+    indices_ham = [i for i in range(len(messages)) if messages[i][1] == 0]
+    print(len(indices_spam))
+    print(len(indices_ham))
+    random.shuffle(indices_spam)
+    random.shuffle(indices_ham)
+    size = int(len(indices_spam) * perc)
+    for i in indices_spam[:size]:
         messages_train.append(messages[i])
-    for i in indices[size:]:
+    for i in indices_spam[size:]:
         messages_test.append(messages[i])
-    return messages_train, messages_test
+    indices += indices_spam[:size]
+    size = int(len(indices_ham) * perc)
+    indices += indices_ham[:size]
+    c = 0
+    for i in indices_ham[:size]:
+        if c < 224:
+            messages_train.append(messages[i])
+        c += 1
+    for i in indices_ham[size:]:
+        messages_test.append(messages[i])
+    return messages_train, messages_test, indices
 
 def convert_vectors(messages_train, messages_test):
     X_train, y_train, X_test, y_test = [], [], [], []
@@ -177,25 +214,34 @@ def convert_vectors(messages_train, messages_test):
 
 def main():
     # Preprocessing data
-    messages, vocabulary = preprocess_data('SMS_Spam_Corpus_big.txt')
+    '''messages, vocabulary = preprocess_data('SMS_Spam_Corpus_big.txt')
+    print(len(vocabulary))
     print('Data preprocessed')
     # Vectorize messages
     vectors = vectorize(messages,vocabulary)
     print('Vectors done!')
     # Split messages in a train and test set
-    size = int(len(messages) * 0.7)
-    messages_train, messages_test = split_data(size, vectors)
+    messages_train, messages_test, indices = split_data(0.7, vectors)
+    m_t = [messages[i][0] for i in indices]
+    save_structure(m_t, 'm_t.pkl')
+    #print(m_t)
     print('Split done!')
     # Convert to numpy matrix and vector
     X_train, y_train, X_test, y_test = convert_vectors(messages_train, messages_test)
-    save_structure(X_train,'X_train')
-    save_structure(y_train,'y_train')
-    save_structure(X_test,'X_test')
-    save_structure(y_test,'y_test')
+    print(X_train.shape)
+    print(X_test.shape)
+    save_structure(X_train,'X_train.pkl')
+    save_structure(y_train,'y_train.pkl')
+    save_structure(X_test,'X_test.pkl')
+    save_structure(y_test,'y_test.pkl')
+    save_structure(vocabulary, 'vocabulary.pkl')
     print('Convertion done!')
+    #vocabulary, X_train, y_train = load_structure('vocabulary.pkl'), load_structure('X_train.pkl'), load_structure('y_train.pkl')
     #Y = np.array([Y.values])
-    lr = LogisticRegression(len(vocabulary+1),X_train,y_train)
-    lr.train(30000)
-    save_structure('lr.pkl')
-    lr.test(X_test,messages_test)
+    lr = LogisticRegression(len(vocabulary)+1,X_train,y_train)
+    lr.train(1001)
+    save_structure(lr,'lr.pkl')'''
+    lr = load_structure('lr.pkl')
+    X_test , m_t, y_test = load_structure('X_test.pkl'), load_structure('m_t.pkl'), load_structure('y_test.pkl')
+    lr.test(X_test,m_t,y_test)
 main()
